@@ -4,7 +4,6 @@ using PngDecoder.Models;
 using PngDecoder.Models.ColorReader;
 using PngDecoder.Models.Filters;
 using System.Buffers;
-using System.Diagnostics;
 using System.IO.Compression;
 
 namespace PngDecoder;
