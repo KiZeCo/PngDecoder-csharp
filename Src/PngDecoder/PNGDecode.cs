@@ -14,7 +14,7 @@ public class PNGDecode
     private List<PNGChunk> _chunks;
 
     private static ReadOnlySpan<byte> headerSignature =>
-        [137, 80, 78, 71, 13, 10, 26, 10];
+        [0x89, (byte)'P', (byte)'N', (byte)'G', (byte)'\r', (byte)'\n', 0x1a, (byte)'\n'];
 
     public PNGDecode(Stream fileStream)
     {
