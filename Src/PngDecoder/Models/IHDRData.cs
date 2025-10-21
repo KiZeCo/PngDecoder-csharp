@@ -1,15 +1,15 @@
 ﻿namespace PngDecoder.Models;
-internal struct IHDRData
+public readonly struct IHDRData
 {
-    public uint Width { get; set; }
-    public uint Height { get; set; }
-    public byte BitDepth { get; set; }
-    public ColorType ColorType { get; set; }
-    public byte CompressionMethod { get; set; }
-    public byte FilterMethod { get; set; }
-    public byte InterlaceMethod { get; set; }
+    public uint Width { get; }
+    public uint Height { get; }
+    public byte BitDepth { get; }
+    public ColorType ColorType { get; }
+    public byte CompressionMethod { get; }
+    public byte FilterMethod { get; }
+    public byte InterlaceMethod { get; }
 
-    public IHDRData(PNGChunk headerChunk)
+    internal IHDRData(PNGChunk headerChunk)
     {
         if (headerChunk.Length != 13)
             throw new ArgumentException("Invalid Header");
@@ -17,23 +17,22 @@ internal struct IHDRData
         Span<byte> response = stackalloc byte[(int)headerChunk.Length];
         headerChunk.GetData(response);
 
-        var temp = response.Slice(0, 4);
+        var temp = response[..4];
         temp.Reverse();
-        this.Width = BitConverter.ToUInt32(temp);
+        Width = BitConverter.ToUInt32(temp);
 
         temp = response.Slice(4, 4);
         temp.Reverse();
-        this.Height = BitConverter.ToUInt32(temp);
+        Height = BitConverter.ToUInt32(temp);
 
-        this.BitDepth = response[8];
-        this.ColorType = (ColorType)response[9];
-        this.CompressionMethod = response[10];
-        this.FilterMethod = response[11];
-        this.InterlaceMethod = response[12];
-
+        BitDepth = response[8];
+        ColorType = (ColorType)response[9];
+        CompressionMethod = response[10];
+        FilterMethod = response[11];
+        InterlaceMethod = response[12];
     }
 
-    public int GetScanLinesWidthWithPadding()
+    public readonly int GetScanLinesWidthWithPadding()
     {
         var length = Width * BitDepth * GetBytePerPixels();
         var count = (int)(length / 8);
@@ -44,13 +43,13 @@ internal struct IHDRData
         return ++count;
     }
 
-    public decimal GetScanLineWidthWithoutPadding()
+    public readonly decimal GetScanLineWidthWithoutPadding()
     {
         decimal length = Width * BitDepth * GetBytePerPixels();
         return length / 8m;
     }
 
-    private readonly uint GetBytePerPixels() => this.ColorType switch
+    private readonly uint GetBytePerPixels() => ColorType switch
     {
         ColorType.GreyScale => 1,
         ColorType.RGB => 3,
@@ -60,7 +59,7 @@ internal struct IHDRData
         _ => throw new Exception(),
     };
 
-    public byte GetPixelSizeInByte() => this.ColorType switch
+    public readonly byte GetPixelSizeInByte() => ColorType switch
     {
         ColorType.GreyScale => (byte)Math.Round(1d * BitDepth / 8, MidpointRounding.ToPositiveInfinity),
         ColorType.Palette => 1,

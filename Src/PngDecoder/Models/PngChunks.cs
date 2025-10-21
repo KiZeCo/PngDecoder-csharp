@@ -7,10 +7,10 @@ internal struct PNGChunk
 {
     private readonly Stream _stream;
 
-    public uint Length { get; set; }
-    public PngChunkType Signature { get; set; }
-    public long Data { get; set; }
-    public long CRC { get; set; }
+    public uint Length { get; }
+    public PngChunkType Signature { get; }
+    public long Data { get; }
+    public long CRC { get; }
 
     public PNGChunk(Stream stream)
     {
@@ -19,15 +19,15 @@ internal struct PNGChunk
         Span<byte> responce = stackalloc byte[4];
         stream.Read(responce);
         MemoryExtensions.Reverse(responce);
-        this.Length = responce.ToStruct<uint>();
+        Length = responce.ToStruct<uint>();
 
         stream.Read(responce);
-        this.Signature = responce.ToStruct<PngChunkType>();
+        Signature = responce.ToStruct<PngChunkType>();
 
-        this.Data = stream.Position;
-        _stream.Seek(this.Length, SeekOrigin.Current);
+        Data = stream.Position;
+        _stream.Seek(Length, SeekOrigin.Current);
 
-        this.CRC = stream.Position;
+        CRC = stream.Position;
         _stream.Seek(4, SeekOrigin.Current);
     }
 
@@ -42,7 +42,7 @@ internal struct PNGChunk
     public byte[] GetData()
     {
         var oldPosation = _stream.Position;
-        var result = new byte[this.Length];
+        var result = new byte[Length];
         _stream.Seek(Data, SeekOrigin.Begin);
         _stream.Read(result, 0, result.Length);
         _stream.Seek(oldPosation, SeekOrigin.Begin);
