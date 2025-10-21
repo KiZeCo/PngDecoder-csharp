@@ -1,12 +1,10 @@
 ﻿
 namespace PngDecoder.Models.ColorReader;
-internal class RGBAColorConverter : BaseRGBColorConverter
+internal class RGBAColorConverter(IHDRData ihdr) : BaseRGBColorConverter(ihdr)
 {
-    public RGBAColorConverter(IHDRData ihdr) : base(ihdr) { }
-
     public override void Write(Span<byte> result, byte inputByte, ref int writeIndex)
     {
-        if (base.Ihdr.BitDepth == 8)
+        if (Ihdr.BitDepth == 8)
         {
             result[writeIndex] = inputByte;
             writeIndex++;

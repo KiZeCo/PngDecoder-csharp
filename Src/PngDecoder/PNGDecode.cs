@@ -11,7 +11,7 @@ namespace PngDecoder;
 public class PNGDecode
 {
     private readonly Stream _fileStream;
-    private List<PNGChunk> _chunks;
+    private readonly List<PNGChunk> _chunks = new(4);
     public IHDRData Header { get; }
 
     private static ReadOnlySpan<byte> headerSignature =>
@@ -19,7 +19,6 @@ public class PNGDecode
 
     public PNGDecode(Stream fileStream)
     {
-        _chunks = new List<PNGChunk>(4);
         _fileStream = fileStream;
         Span<byte> signature = stackalloc byte[headerSignature.Length];
         _fileStream.Read(signature);
@@ -88,7 +87,6 @@ public class PNGDecode
         result.Position = 0;
         return new ZLibStream(result, CompressionMode.Decompress, false);
     }
-
 
     private void UnfilterStream(Stream filteredRawData, BaseRGBColorConverter converter, byte[] result, ref int writtenIndex, ref int currentRow)
     {

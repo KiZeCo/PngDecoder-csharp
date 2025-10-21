@@ -1,10 +1,9 @@
 ﻿namespace PngDecoder.Models.ColorReader;
-internal class GrayScaleColorConverter : BaseRGBColorConverter
+internal class GrayScaleColorConverter(IHDRData ihdr) : BaseRGBColorConverter(ihdr)
 {
-    public GrayScaleColorConverter(IHDRData ihdr) : base(ihdr) { }
     public override void Write(Span<byte> result, byte inputByte, ref int writeIndex)
     {
-        var bitDetails = base.BitDepthDetailsForGrayScale();
+        var bitDetails = BitDepthDetailsForGrayScale();
         if (bitDetails is { mask: not null, bit: not null, map: not null })
         {
             for (int j = 0; j < 8; j += bitDetails.bit!.Value)

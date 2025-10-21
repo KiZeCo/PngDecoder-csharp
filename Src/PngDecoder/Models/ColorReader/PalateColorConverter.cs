@@ -1,15 +1,10 @@
 ﻿
 namespace PngDecoder.Models.ColorReader;
-internal class PalateColorConverter : BaseRGBColorConverter
+internal class PalateColorConverter(PLTEData _data, IHDRData ihdr) : BaseRGBColorConverter(ihdr)
 {
-    private readonly PLTEData _data;
-
-    public PalateColorConverter(PLTEData data, IHDRData ihdr) : base(ihdr) =>
-        _data = data;
-
     public override void Write(Span<byte> result, byte inputByte, ref int writeIndex)
     {
-        var bitDetails = base.BitDepthDetailsForPalated();
+        var bitDetails = BitDepthDetailsForPalated();
         if (bitDetails is { mask: not null, step: not null })
         {
             // less than 8 n

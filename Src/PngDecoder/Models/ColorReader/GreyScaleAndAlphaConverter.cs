@@ -1,12 +1,10 @@
 ﻿
 namespace PngDecoder.Models.ColorReader;
-internal class GreyScaleAndAlphaConverter : BaseRGBColorConverter
+internal class GreyScaleAndAlphaConverter(IHDRData ihdr) : BaseRGBColorConverter(ihdr)
 {
-    public GreyScaleAndAlphaConverter(IHDRData ihdr) : base(ihdr) { }
-
     public override void Write(Span<byte> result, byte inputByte, ref int writeIndex)
     {
-        if (base.Ihdr.BitDepth == 8)
+        if (Ihdr.BitDepth == 8)
         {
             if (writeIndex % 2 == 0)
             {

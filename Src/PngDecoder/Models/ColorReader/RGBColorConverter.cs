@@ -1,13 +1,11 @@
 ﻿// Ignore Spelling: ihdr
 
 namespace PngDecoder.Models.ColorReader;
-internal class RGBColorConverter : BaseRGBColorConverter
+internal class RGBColorConverter(IHDRData ihdr) : BaseRGBColorConverter(ihdr)
 {
-    public RGBColorConverter(IHDRData ihdr) : base(ihdr) { }
-
     public override void Write(Span<byte> result, byte inputByte, ref int writeIndex)
     {
-        if (base.Ihdr.BitDepth == 8)
+        if (Ihdr.BitDepth == 8)
         {
             if (writeIndex % 4 == 3)
             {

@@ -1,12 +1,9 @@
 ﻿// Ignore Spelling: Ihdr
 
 namespace PngDecoder.Models.ColorReader;
-internal abstract class BaseRGBColorConverter
+internal abstract class BaseRGBColorConverter(IHDRData ihdr)
 {
-    public readonly IHDRData Ihdr;
-
-    protected BaseRGBColorConverter(IHDRData ihdr) =>
-        Ihdr = ihdr;
+    public readonly IHDRData Ihdr = ihdr;
 
     public abstract void Write(Span<byte> result, byte inputByte, ref int writeIndex);
     public (byte? step, byte? mask) BitDepthDetailsForPalated()
