@@ -12,6 +12,7 @@ public class PNGDecode
 {
     private readonly Stream _fileStream;
     private List<PNGChunk> _chunks;
+    public IHDRData Header { get; }
 
     private static ReadOnlySpan<byte> headerSignature =>
         [0x89, (byte)'P', (byte)'N', (byte)'G', (byte)'\r', (byte)'\n', 0x1a, (byte)'\n'];
@@ -25,9 +26,15 @@ public class PNGDecode
         if (!GenericHelper.Equal(signature, headerSignature))
             throw new SignatureException(signature.ToArray());
 
+        var gotHeader = false;
         while (_fileStream.Position < _fileStream.Length)
         {
             var chunk = new PNGChunk(_fileStream);
+            if (!gotHeader && chunk.Signature == PngChunkType.IHDR)
+            {
+                Header = new (chunk);
+                gotHeader = true;
+            }
             _chunks.Add(chunk);
             if (chunk.Signature == PngChunkType.IEND)
                 break;
@@ -36,35 +43,33 @@ public class PNGDecode
         //check essentials
         // IEND, IDAT, IHDR
     }
-    public int Height { get => (int)new IHDRData(_chunks.First(a => a.Signature == PngChunkType.IHDR)).Height; }
-    public int width { get => (int)new IHDRData(_chunks.First(a => a.Signature == PngChunkType.IHDR)).Width; }
+
+    public uint Height => Header.Height;
+    public uint Width => Header.Width;
 
     public byte[] DecodeImageData()
     {
-        var header = _chunks.First(a => a.Signature == PngChunkType.IHDR);
-        var headerData = new IHDRData(header);
-
         var paletteData = new PLTEData?();
 
-        if (headerData.ColorType == ColorType.Palette)
+        if (Header.ColorType == ColorType.Palette)
         {
             var palate = _chunks.First(a => a.Signature == PngChunkType.PLTE);
             paletteData = new PLTEData(palate);
         }
-        var colorConverter = GetColorConverter(headerData, paletteData);
+        var colorConverter = GetColorConverter(Header, paletteData);
 
-            var writtenIndex = 0;
-            var currentRow = -1;
-            var result = new byte[headerData.Height * headerData.Width * 4];
-            using var rawstream = GetFilteredRawStream2();
-            using var filteredMutableRawStream = new MemoryStream();
-            rawstream.CopyTo(filteredMutableRawStream);
-            UnfilterStream(filteredMutableRawStream, colorConverter, result, ref writtenIndex, ref currentRow);
-            return result;
-        }
+        var writtenIndex = 0;
+        var currentRow = -1;
+        var result = new byte[Header.Height * Header.Width * 4];
+        using var rawstream = GetFilteredRawStream();
+        using var filteredMutableRawStream = new MemoryStream();
+        rawstream.CopyTo(filteredMutableRawStream);
+        UnfilterStream(filteredMutableRawStream, colorConverter, result, ref writtenIndex, ref currentRow);
+        return result;
+    }
 
     // TODO write own ZLib to minimize foot-print even more
-    ZLibStream GetFilteredRawStream2()
+    private ZLibStream GetFilteredRawStream()
     {
         var result = new MemoryStream();
         foreach (var chunk in _chunks.Where(a => a.Signature == PngChunkType.IDAT))
@@ -131,5 +136,4 @@ public class PNGDecode
             ColorType.RGBA => new RGBAColorConverter(ihdr),
             _ => throw new NotSupportedException(),
         };
-
 }
