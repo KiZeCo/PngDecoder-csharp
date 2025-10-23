@@ -10,5 +10,5 @@ internal readonly struct PLTEData
 
     // r,g,b format
     public readonly ReadOnlySpan<byte> this[int index] =>
-        new ReadOnlySpan<byte>(Palette, index *= 3, 3);
+        new(Palette, index *= 3, 3);
 }

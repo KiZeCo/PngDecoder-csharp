@@ -32,7 +32,7 @@ public class UnitTest1
             try
             {
                 var pngDecode = new PNGDecode(fs);
-                var c = pngDecode.DecodeImageData();
+                var c = pngDecode.DecodeImageData().ToArray();
 
                 // assert
                 Assert.NotEmpty(c);

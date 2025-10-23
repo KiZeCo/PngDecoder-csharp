@@ -46,7 +46,7 @@ public class PNGDecode
     public uint Height => Header.Height;
     public uint Width => Header.Width;
 
-    public byte[] DecodeImageData()
+    public Span<byte> DecodeImageData()
     {
         var paletteData = new PLTEData?();
 
@@ -57,13 +57,11 @@ public class PNGDecode
         }
         var colorConverter = GetColorConverter(Header, paletteData);
 
-        var writtenIndex = 0;
-        var currentRow = -1;
         var result = new byte[Header.Height * Header.Width * 4];
         using var rawstream = GetFilteredRawStream();
         using var filteredMutableRawStream = new MemoryStream();
         rawstream.CopyTo(filteredMutableRawStream);
-        UnfilterStream(filteredMutableRawStream, colorConverter, result, ref writtenIndex, ref currentRow);
+        UnfilterStream(filteredMutableRawStream, colorConverter, result);
         return result;
     }
 
@@ -88,14 +86,16 @@ public class PNGDecode
         return new ZLibStream(result, CompressionMode.Decompress, false);
     }
 
-    private void UnfilterStream(Stream filteredRawData, BaseRGBColorConverter converter, byte[] result, ref int writtenIndex, ref int currentRow)
+    private void UnfilterStream(Stream filteredRawData, BaseRGBColorConverter converter, Span<byte> result)
     {
         filteredRawData.Seek(0, SeekOrigin.Begin);
         Span<byte> currentByte = stackalloc byte[1];
         var writtenSection = new Span<byte>();
         var lineWidth = converter.Ihdr.GetScanLinesWidthWithPadding() + 1;
-        var filterer = new BaseFilter(filteredRawData, lineWidth, converter.Ihdr.GetPixelSizeInByte());
+        var filterer = new BaseFilter(filteredRawData, lineWidth, converter.Ihdr.PixelSizeInByte);
         var unapply = filterer.GetUnApply(0);
+        var writtenIndex = 0;
+        var currentRow = -1;
         while (filteredRawData.Read(currentByte) != 0)
         {
             if (filteredRawData.Position == 1 || filteredRawData.Position % lineWidth == 1)
@@ -103,7 +103,7 @@ public class PNGDecode
                 writtenIndex = 0;
                 currentRow++;
                 unapply = filterer.GetUnApply(currentByte[0]);
-                writtenSection = new Span<byte>(result,
+                writtenSection = result.Slice(
                     (int)(currentRow * converter.Ihdr.Width * 4),
                     (int)converter.Ihdr.Width * 4);
                 continue;
