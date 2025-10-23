@@ -140,8 +140,6 @@ public class BaseFilterLogics
         Assert.Equal(0, response);
     }
 
-
-
     [Fact]
     public void TopLeftCheckFirstLineLittleInSide()
     {
