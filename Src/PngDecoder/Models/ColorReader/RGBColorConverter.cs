@@ -14,6 +14,12 @@ internal class RGBColorConverter(IHDRData ihdr) : BaseRGBColorConverter(ihdr)
             }
             result[writeIndex] = inputByte;
             writeIndex++;
+
+            // fill in alpha for last pixel on line
+            if (writeIndex == result.Length - 1) 
+            {
+                result[writeIndex] = 255;
+            }
         }
         // 16
         else
