@@ -95,36 +95,26 @@ public class PNGDecode
         filteredRawData.Seek(0, SeekOrigin.Begin);
         Span<byte> currentByte = stackalloc byte[1];
         var writtenSection = new Span<byte>();
-        var scanlineLength = converter.Ihdr.GetScanLinesWidthWithPadding() + 1;
-        BaseFilter filter = new NonFilter(filteredRawData);
+        var lineWidth = converter.Ihdr.GetScanLinesWidthWithPadding() + 1;
+        var filterer = new BaseFilter(filteredRawData, lineWidth, converter.Ihdr.GetPixelSizeInByte());
+        var unapply = filterer.GetUnApply(0);
         while (filteredRawData.Read(currentByte) != 0)
         {
-            if (filteredRawData.Position == 1 || filteredRawData.Position % scanlineLength == 1)
+            if (filteredRawData.Position == 1 || filteredRawData.Position % lineWidth == 1)
             {
                 writtenIndex = 0;
                 currentRow++;
-                filter = GetFilter(currentByte[0], filteredRawData, converter.Ihdr.GetPixelSizeInByte());
+                unapply = filterer.GetUnApply(currentByte[0]);
                 writtenSection = new Span<byte>(result,
                     (int)(currentRow * converter.Ihdr.Width * 4),
                     (int)converter.Ihdr.Width * 4);
                 continue;
             }
             //TODO: can be do prcess the number requied pixels or a full pixel.
-            var compressByte = filter.UnApply(currentByte[0], scanlineLength);
+            var compressByte = unapply(currentByte[0]);
             converter.Write(writtenSection, compressByte, ref writtenIndex);
         }
     }
-
-    private static BaseFilter GetFilter(byte mode, Stream filteredRawData, byte pixelSize) =>
-        mode switch
-        {
-            0 => new NonFilter(filteredRawData),
-            1 => new SubFilter(filteredRawData, pixelSize),
-            2 => new UpFilter(filteredRawData),
-            3 => new AverageFilter(filteredRawData, pixelSize),
-            4 => new PaethFilter(filteredRawData, pixelSize),
-            _ => throw new NotImplementedException()
-        };
 
     private static BaseRGBColorConverter GetColorConverter(IHDRData ihdr, PLTEData? plte) =>
         ihdr.ColorType switch

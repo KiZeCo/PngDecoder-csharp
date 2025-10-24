@@ -1,36 +1,72 @@
 ﻿namespace PngDecoder.Models.Filters;
-public class BaseFilter
+public class BaseFilter(Stream _stream, int lineWidth, byte pixelSize)
 {
-    private readonly Stream _stream;
-    private const byte FILTERTYPEFACTOR = 1; 
+    private const byte FILTERTYPEFACTOR = 1;
 
-    public BaseFilter(Stream stream) =>
-        _stream = stream;
+    public Func<byte, byte> GetUnApply(byte mode) =>
+        mode switch
+        {
+            0 => UnApply,
+            1 => SubFilter,
+            2 => UpFilter,
+            3 => AverageFilter,
+            4 => PaethFilter,
+            _ => throw new NotImplementedException()
+        };
 
-    public virtual byte UnApply(byte current, int scanLineWidth)
+    private byte SubFilter(byte current)
+        => UnApply((byte)(GetLeftByte() + current));
+
+    private byte UpFilter(byte current)
+        => UnApply((byte)(GetUpByte() + current));
+
+    private byte AverageFilter(byte current)
+        => UnApply((byte)(current
+            + (GetLeftByte() + GetUpByte()) / 2));
+
+    private byte PaethFilter(byte current)
+        => UnApply((byte)(current + PaethCalculate(
+            GetLeftByte(),
+            GetUpByte(),
+            GetTopLeftByte())));
+
+    private static byte PaethCalculate(byte left, byte top, byte upperLeft)
+    {
+        var p = left + top - upperLeft;
+        var pa = Math.Abs(p - left);
+        var pb = Math.Abs(p - top);
+        var pc = Math.Abs(p - upperLeft);
+        if (pa <= pb && pa <= pc)
+            return left;
+        else if (pb <= pc)
+            return top;
+        else
+            return upperLeft;
+    }
+
+    public byte UnApply(byte current)
     {
         _stream.Seek(-1, SeekOrigin.Current);
         _stream.WriteByte(current);
         return current;
     }
 
-    public byte GetLeftByte(int lineWidth, byte pixelLength)
+    public byte GetLeftByte()
     {
         // need account the bit depth
         Span<byte> result = stackalloc byte[1];
         var modPosation = _stream.Position % lineWidth;
-        if (modPosation > (pixelLength + FILTERTYPEFACTOR) || modPosation == 0)
+        if (modPosation > (pixelSize + FILTERTYPEFACTOR) || modPosation == 0)
         {
             var tempPos = _stream.Position;
-            _stream.Seek(-(pixelLength + FILTERTYPEFACTOR), SeekOrigin.Current);
+            _stream.Seek(-(pixelSize + FILTERTYPEFACTOR), SeekOrigin.Current);
             _stream.Read(result);
             _stream.Seek(tempPos, SeekOrigin.Begin);
         }
         return result[0];
-
     }
 
-    public byte GetTopByte(int lineWidth)
+    public byte GetUpByte()
     {
         var topIndex = _stream.Position - lineWidth - 1;
         Span<byte> result = stackalloc byte[1];
@@ -45,12 +81,12 @@ public class BaseFilter
         return result[0];
     }
 
-    public byte GetTopLeftByte(int lineWidth, byte pixelLength)
+    public byte GetTopLeftByte()
     {
         Span<byte> result = stackalloc byte[1];
-        var topleftIndex = lineWidth + FILTERTYPEFACTOR + pixelLength;
+        var topleftIndex = lineWidth + FILTERTYPEFACTOR + pixelSize;
         var modPosation = (_stream.Position - lineWidth) % lineWidth;
-        if (_stream.Position > lineWidth && (modPosation > (pixelLength + FILTERTYPEFACTOR) || modPosation == 0))
+        if (_stream.Position > lineWidth && (modPosation > (pixelSize + FILTERTYPEFACTOR) || modPosation == 0))
         {
 
             var tempPos = _stream.Position;

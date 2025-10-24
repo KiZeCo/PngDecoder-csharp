@@ -7,7 +7,7 @@ public class BaseFilterForSixteenBitImage
     private MemoryStream _stream;
     public BaseFilterForSixteenBitImage()
     {
-        _stream = new MemoryStream();
+        _stream = new MemoryStream(20);
         _stream.Position = 0;
 
         _stream.WriteByte(99); // Filter              
@@ -40,10 +40,10 @@ public class BaseFilterForSixteenBitImage
     [Fact]
     public void Get3PartLeft()
     {
-        var filter = new BaseFilter(_stream);
+        var filter = new BaseFilter(_stream, 9, 3);
         _stream.Seek(4, SeekOrigin.Begin);
         var pos  = _stream.ReadByte();
-        var left = filter.GetLeftByte(9, 3);
+        var left = filter.GetLeftByte();
 
         Assert.Equal(pos, left);
     }
