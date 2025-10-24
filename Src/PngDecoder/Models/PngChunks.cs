@@ -9,8 +9,8 @@ internal struct PNGChunk
 
     public uint Length { get; }
     public PngChunkType Signature { get; }
-    public long Data { get; }
-    public long CRC { get; }
+    private long PosData { get; }
+    private long PosCRC { get; }
 
     public PNGChunk(Stream stream)
     {
@@ -24,46 +24,29 @@ internal struct PNGChunk
         stream.Read(responce);
         Signature = responce.ToStruct<PngChunkType>();
 
-        Data = stream.Position;
+        PosData = stream.Position;
         _stream.Seek(Length, SeekOrigin.Current);
 
-        CRC = stream.Position;
+        PosCRC = stream.Position;
         _stream.Seek(4, SeekOrigin.Current);
     }
 
-    public void GetData(Span<byte> result)
+    public int GetData(Span<byte> result)
     {
         var oldPosation = _stream.Position;
-        _stream.Seek(Data, SeekOrigin.Begin);
-        _stream.Read(result);
+        _stream.Seek(PosData, SeekOrigin.Begin);
+        var read = _stream.Read(result);
         _stream.Seek(oldPosation, SeekOrigin.Begin);
+        return read;
     }
 
-    public byte[] GetData()
+    public Span<byte> GetCRC()
     {
+        Span<byte> result = new byte[4];
         var oldPosation = _stream.Position;
-        var result = new byte[Length];
-        _stream.Seek(Data, SeekOrigin.Begin);
-        _stream.Read(result, 0, result.Length);
+        _stream.Seek(PosCRC, SeekOrigin.Begin);
+        _stream.Read(result);
         _stream.Seek(oldPosation, SeekOrigin.Begin);
         return result;
-    }
-
-    public void GetData(byte[] result, int offset = 0, int? count = null)
-    {
-        var oldPosation = _stream.Position;
-        _stream.Seek(Data, SeekOrigin.Begin);
-        _stream.Read(result, offset, count ?? (int)Length);
-        _stream.Seek(oldPosation, SeekOrigin.Begin);
-    }
-
-    public byte[] GetCRC()
-    {
-        var oldPosation = _stream.Position;
-        Span<byte> result = stackalloc byte[4];
-        _stream.Seek(Data, SeekOrigin.Begin);
-        _stream.Read(result);
-        _stream.Seek(oldPosation, SeekOrigin.Begin);
-        return result.ToArray();
     }
 }
