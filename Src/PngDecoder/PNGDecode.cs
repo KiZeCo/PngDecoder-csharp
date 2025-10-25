@@ -91,8 +91,8 @@ public class PNGDecode
         filteredRawData.Seek(0, SeekOrigin.Begin);
         Span<byte> currentByte = stackalloc byte[1];
         var writtenSection = new Span<byte>();
-        var lineWidth = converter.Ihdr.GetScanLinesWidthWithPadding() + 1;
-        var filterer = new BaseFilter(filteredRawData, lineWidth, converter.Ihdr.PixelSizeInByte);
+        var lineWidth = Header.GetScanLinesWidthWithPadding() + 1;
+        var filterer = new BaseFilter(filteredRawData, lineWidth, Header.PixelSizeInByte);
         var unapply = filterer.GetUnApply(0);
         var writtenIndex = 0;
         var currentRow = -1;
@@ -104,8 +104,8 @@ public class PNGDecode
                 currentRow++;
                 unapply = filterer.GetUnApply(currentByte[0]);
                 writtenSection = result.Slice(
-                    (int)(currentRow * converter.Ihdr.Width * 4),
-                    (int)converter.Ihdr.Width * 4);
+                    (int)(currentRow * Header.Width * 4),
+                    (int)Header.Width * 4);
                 continue;
             }
             //TODO: can be do prcess the number requied pixels or a full pixel.
