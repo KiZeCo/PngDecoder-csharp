@@ -13,6 +13,7 @@ public class PNGDecode
     private readonly Stream _fileStream;
     private readonly List<PNGChunk> _chunks = new(4);
     public IHDRData Header { get; }
+    private PLTEData PlteData => new(_chunks.First(a => a.Signature == PngChunkType.PLTE));
 
     private static ReadOnlySpan<byte> headerSignature =>
         [0x89, (byte)'P', (byte)'N', (byte)'G', (byte)'\r', (byte)'\n', 0x1a, (byte)'\n'];
@@ -48,14 +49,7 @@ public class PNGDecode
 
     public Span<byte> DecodeImageData()
     {
-        var paletteData = new PLTEData?();
-
-        if (Header.ColorType == ColorType.Palette)
-        {
-            var palate = _chunks.First(a => a.Signature == PngChunkType.PLTE);
-            paletteData = new PLTEData(palate);
-        }
-        var colorConverter = GetColorConverter(Header, paletteData);
+        var colorConverter = GetColorConverter();
 
         var result = new byte[Header.Height * Header.Width * 4];
         using var rawstream = GetFilteredRawStream();
@@ -86,7 +80,7 @@ public class PNGDecode
         return new ZLibStream(result, CompressionMode.Decompress, false);
     }
 
-    private void UnfilterStream(Stream filteredRawData, BaseRGBColorConverter converter, Span<byte> result)
+    private void UnfilterStream(Stream filteredRawData, IColorConverter converter, Span<byte> result)
     {
         filteredRawData.Seek(0, SeekOrigin.Begin);
         Span<byte> currentByte = stackalloc byte[1];
@@ -114,14 +108,14 @@ public class PNGDecode
         }
     }
 
-    private static BaseRGBColorConverter GetColorConverter(IHDRData ihdr, PLTEData? plte) =>
-        ihdr.ColorType switch
+    private IColorConverter GetColorConverter() =>
+        Header.ColorType switch
         {
-            ColorType.Palette => new PalateColorConverter(plte!.Value, ihdr),
-            ColorType.GreyScale => new GrayScaleColorConverter(ihdr),
-            ColorType.RGB => new RGBColorConverter(ihdr),
-            ColorType.GreyScaleAndAlpha => new GreyScaleAndAlphaConverter(ihdr),
-            ColorType.RGBA => new RGBAColorConverter(ihdr),
+            ColorType.Palette => Header.BitDepth == 8 ? new PalateColorConverter8Bit(PlteData) : new PalateColorConverterLt8Bit(PlteData, Header),
+            ColorType.GreyScale => Header.BitDepth == 8 ? new GrayScaleColorConverter8Bit() : (Header.BitDepth < 8 ? new GrayScaleColorConverterLt8Bit(Header) : new GrayScaleColorConverter16Bit()),
+            ColorType.RGB => Header.BitDepth == 8 ? new RGBColorConverter8Bit() : new RGBColorConverter16Bit(),
+            ColorType.GreyScaleAndAlpha => Header.BitDepth == 8 ? new GreyScaleAndAlphaConverter8Bit() : new GreyScaleAndAlphaConverter16Bit(),
+            ColorType.RGBA => Header.BitDepth == 8 ? new RGBAColorConverter8Bit() : new RGBAColorConverter16Bit(),
             _ => throw new NotSupportedException(),
         };
 }
