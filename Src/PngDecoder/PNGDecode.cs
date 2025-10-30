@@ -3,7 +3,6 @@ using PngDecoder.Extension;
 using PngDecoder.Models;
 using PngDecoder.Models.ColorReader;
 using PngDecoder.Models.Filters;
-using System.Diagnostics;
 using System.IO.Compression;
 
 namespace PngDecoder;
@@ -75,38 +74,28 @@ public class PNGDecode
 
     private void UnfilterStream(Memory<byte> mutableRawData, IColorConverter converter, Span<byte> result)
     {
-        var writtenSection = new Span<byte>();
+        Span<byte> writtenSection;
         var lineWidth = Header.GetScanLinesWidthWithPadding() + 1;
         var filterer = new BaseFilter(mutableRawData, lineWidth, Header.PixelSizeInByte);
-        var unapply = filterer.GetUnApply(0);
-        var writtenIndex = 0;
-        var currentRow = -1;
-        var currentByte = -1;
-        // TODO work on lines
-        var lineno = 0;
-        while (lineno < Height)
+        var currentRow = 0;
+        Span<byte> priorLine = null;
+        while (currentRow < Height)
         {
-            var line = filterer.GetLine(lineno++);
-            if (line.Length != lineWidth)
+            writtenSection = result.Slice(
+                (int)(currentRow * Header.Width * 4),
+                (int)Header.Width * 4);
+            var line = filterer.GetLine(currentRow++);
+            var unapply = filterer.GetUnApply(line[0]);
+
+            var writtenIndex = 0;
+            var pos = 1; // ignore first command byte
+            while (pos < lineWidth)
             {
-                throw new IndexOutOfRangeException($"{line.Length} expected {lineWidth}");
+                //TODO: can be do prcess the number requied pixels or a full pixel.
+                var compressByte = unapply(pos++, line, priorLine);
+                converter.Write(writtenSection, compressByte, ref writtenIndex);
             }
-        }
-        while ((currentByte = filterer.ReadByte()) != -1)
-        {
-            if (filterer.Position % lineWidth == 1)
-            {
-                writtenIndex = 0;
-                currentRow++;
-                unapply = filterer.GetUnApply(currentByte);
-                writtenSection = result.Slice(
-                    (int)(currentRow * Header.Width * 4),
-                    (int)Header.Width * 4);
-                continue;
-            }
-            //TODO: can be do prcess the number requied pixels or a full pixel.
-            var compressByte = unapply((byte)currentByte);
-            converter.Write(writtenSection, compressByte, ref writtenIndex);
+            priorLine = line;
         }
     }
 

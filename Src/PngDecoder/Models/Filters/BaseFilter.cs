@@ -1,20 +1,16 @@
 ﻿
+using System.Runtime.CompilerServices;
+
 namespace PngDecoder.Models.Filters;
 public class BaseFilter(Memory<byte> buffer, int lineWidth, byte pixelSize)
 {
-    private const byte FILTERTYPEFACTOR = 1;
-
-    private readonly int Length = buffer.Length;
+    public readonly int Length = buffer.Length;
     private readonly Memory<byte> Buffer = buffer;
-    public int ReadByte()
-        => Length <= Position ? -1 : GetByte(Position++);
+    public Span<byte> GetLine(int lineno) => Buffer.Slice(lineno * lineWidth, lineWidth).Span;
+    
+    public delegate byte UnApplyDelegate(int pos, Span<byte> line, Span<byte> priorLine);
 
-    public int Position;
-
-    // TODO allocate span per row
-    public byte GetByte(long pos) => Buffer.Slice((int)pos, 1).Span[0];
-
-    public Func<byte, byte> GetUnApply(int mode) =>
+    public UnApplyDelegate GetUnApply(int mode) =>
         mode switch
         {
             0 => None,
@@ -25,79 +21,66 @@ public class BaseFilter(Memory<byte> buffer, int lineWidth, byte pixelSize)
             _ => throw new NotImplementedException($"Unknown mode {mode}"),
         };
 
-    private byte None(byte current) => current;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte None(int pos, Span<byte> line, Span<byte> priorLine) => line[pos];
 
-    private byte SubFilter(byte current)
-        => UnApply(current, (byte)(GetLeftByte() + current));
+    private byte SubFilter(int pos, Span<byte> line, Span<byte> priorLine)
+        => UnApply(pos, line, GetLeftByte(pos, line));
 
-    private byte UpFilter(byte current)
-        => UnApply(current, (byte)(GetUpByte() + current));
+    private byte UpFilter(int pos, Span<byte> line, Span<byte> priorLine)
+        => UnApply(pos, line, GetUpByte(pos, priorLine));
 
-    private byte AverageFilter(byte current)
-        => UnApply(current, (byte)(current
-            + (GetLeftByte() + GetUpByte()) / 2));
+    private byte AverageFilter(int pos, Span<byte> line, Span<byte> priorLine)
+        => UnApply(pos, line, (GetLeftByte(pos, line) + GetUpByte(pos, priorLine)) / 2);
 
-    private byte PaethFilter(byte current)
-        => UnApply(current, (byte)(current + PaethCalculate(
-            GetLeftByte(),
-            GetUpByte(),
-            GetTopLeftByte())));
+    private byte PaethFilter(int pos, Span<byte> line, Span<byte> priorLine)
+        => UnApply(pos, line, PaethPredictor(
+            GetLeftByte(pos, line),
+            GetUpByte(pos, priorLine),
+            priorLine.Length == 0 ? (byte)0 : GetLeftByte(pos, priorLine)));
 
-    private static byte PaethCalculate(byte left, byte top, byte upperLeft)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte PaethPredictor(byte left, byte top, byte upperLeft)
     {
         var p = left + top - upperLeft;
         var pa = Math.Abs(p - left);
         var pb = Math.Abs(p - top);
         var pc = Math.Abs(p - upperLeft);
         if (pa <= pb && pa <= pc)
-            return left;
-        else if (pb <= pc)
-            return top;
-        else
-            return upperLeft;
-    }
-
-    public byte UnApply(byte current, byte apply)
-    {
-        if (current != apply)
         {
-            Buffer.Slice(Position - 1, 1).Span[0] = apply;
+            return left;
         }
-        return apply;
+        else if (pb <= pc)
+        {
+            return top;
+        }
+
+        return upperLeft;
     }
 
-    public byte GetLeftByte()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte UnApply(int pos, Span<byte> line, int apply)
+    {
+        var v = line[pos];
+        apply = (byte)(v + apply);
+        return v == apply
+            ? (byte)apply
+            : (line[pos] = (byte)apply);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private byte GetLeftByte(int pos, Span<byte> line)
     {
         // need account the bit depth
-        var tempPos = Position;
-        var modPosation = tempPos % lineWidth;
-        if (modPosation != 0 && modPosation <= (pixelSize + FILTERTYPEFACTOR))
+        // first byte on line is filter type
+        if (pos <= pixelSize)
         {
             return 0;
         }
-        return GetByte(tempPos - (pixelSize + FILTERTYPEFACTOR));
+        return line[pos - pixelSize];
     }
 
-    public byte GetUpByte()
-    {
-        var topIndex = Position - lineWidth - 1;
-        if (topIndex < 0)
-        {
-            return 0;
-        }
-        return GetByte(topIndex);
-    }
-
-    public byte GetTopLeftByte()
-    {
-        var tempPos = Position;
-        var modPosation = (tempPos - lineWidth) % lineWidth;
-        if (tempPos <= lineWidth ||
-            modPosation != 0 && modPosation <= (pixelSize + FILTERTYPEFACTOR))
-        {
-            return 0;
-        }
-        var topleftIndex = lineWidth + FILTERTYPEFACTOR + pixelSize;
-        return GetByte(tempPos - topleftIndex);
-    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte GetUpByte(int pos, Span<byte> priorLine)
+        => priorLine.Length == 0 ? (byte)0 : priorLine[pos];
 }

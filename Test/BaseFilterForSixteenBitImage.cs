@@ -3,12 +3,10 @@
 namespace Test;
 public class BaseFilterForSixteenBitImage
 {
-
     private MemoryStream _stream;
     public BaseFilterForSixteenBitImage()
     {
         _stream = new MemoryStream(20);
-        _stream.Position = 0;
 
         _stream.WriteByte(99); // Filter              
             _stream.WriteByte(8); // R
@@ -40,11 +38,13 @@ public class BaseFilterForSixteenBitImage
     [Fact]
     public void Get3PartLeft()
     {
-        var filter = new BaseFilter(new Memory<byte>(_stream.GetBuffer(), 0, (int)_stream.Length), 9, 3);
-        filter.Position = 4;
-        var pos  = filter.ReadByte();
-        var left = filter.GetLeftByte();
+        var filter = new BaseFilter(new Memory<byte>(_stream.GetBuffer(), 0, (int)_stream.Length), 10, 3);
+        var unapply = filter.GetUnApply(1); // SubFilter
+        var line = filter.GetLine(0);
+        var pos = line[4];
+        Assert.Equal(8, pos);
+        var leftApplied = unapply(4, line, null);
 
-        Assert.Equal(pos, left);
+        Assert.Equal(pos * 2, leftApplied);
     }
 }

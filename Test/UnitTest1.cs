@@ -1,6 +1,4 @@
 using PngDecoder;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace Test;
 
@@ -32,12 +30,12 @@ public class UnitTest1
     public void PngFileTest(string filename)
     {
         var filepath = Path.Combine(TestFilesPath, filename);
-        using var fs = File.Open(filepath, FileMode.Open, FileAccess.Read);
+        using var fs = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
         try
         {
             Console.WriteLine($"File: {filepath}");
             var file = Path.GetFileName(filepath);
-            if (file.StartsWith("x"))
+            if (file.StartsWith('x'))
             {
                 Console.WriteLine("Skipping file with expected error");
                 return;
