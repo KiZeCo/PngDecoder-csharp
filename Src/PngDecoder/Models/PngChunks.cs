@@ -3,14 +3,14 @@
 using PngDecoder.Extension;
 
 namespace PngDecoder.Models;
-internal struct PNGChunk
+internal class PNGChunk
 {
     private readonly Stream _stream;
 
     public uint Length { get; }
     public PngChunkType Signature { get; }
-    private long PosData { get; }
-    private long PosCRC { get; }
+    public Memory<byte> Data { get; }
+    public byte[] CRC { get; }
 
     public PNGChunk(Stream stream)
     {
@@ -24,29 +24,12 @@ internal struct PNGChunk
         stream.Read(responce);
         Signature = responce.ToStruct<PngChunkType>();
 
-        PosData = stream.Position;
-        _stream.Seek(Length, SeekOrigin.Current);
+        Data = new byte[Length];
+        var read = _stream.Read(Data.Span);
+        if (read != Length)
+            throw new IndexOutOfRangeException($"Read {read} expected Length {Length} array len {Data.Length}");
 
-        PosCRC = stream.Position;
-        _stream.Seek(4, SeekOrigin.Current);
-    }
-
-    public int GetData(Span<byte> result)
-    {
-        var oldPosation = _stream.Position;
-        _stream.Seek(PosData, SeekOrigin.Begin);
-        var read = _stream.Read(result);
-        _stream.Seek(oldPosation, SeekOrigin.Begin);
-        return read;
-    }
-
-    public Span<byte> GetCRC()
-    {
-        Span<byte> result = new byte[4];
-        var oldPosation = _stream.Position;
-        _stream.Seek(PosCRC, SeekOrigin.Begin);
-        _stream.Read(result);
-        _stream.Seek(oldPosation, SeekOrigin.Begin);
-        return result;
+        CRC = new byte[4];
+        _stream.Read(CRC);
     }
 }

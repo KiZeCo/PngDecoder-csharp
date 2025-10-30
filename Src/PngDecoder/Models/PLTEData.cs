@@ -1,12 +1,7 @@
 ﻿namespace PngDecoder.Models;
-internal readonly struct PLTEData
+internal readonly struct PLTEData(PNGChunk palate)
 {
-    public readonly byte[] Palette;
-    public PLTEData(PNGChunk palate)
-    {
-        Palette = new byte[palate.Length];
-        palate.GetData(Palette);
-    }
+    public readonly byte[] Palette = palate.Data.ToArray();
 
     // r,g,b format
     public readonly ReadOnlySpan<byte> this[int index] =>

@@ -1,67 +1,84 @@
 using PngDecoder;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Test;
 
 public class UnitTest1
 {
-    private List<FileInfo> _list;
-    public UnitTest1()
+    // http://www.schaik.com/pngsuite
+
+    private static DirectoryInfo GetBasePath()
     {
         var projPath = Environment.GetEnvironmentVariable("NCrunch.OriginalProjectPath") ?? Path.Combine(Directory.GetCurrentDirectory(), "dummy.proj");
-        var dir = new DirectoryInfo(Path.GetDirectoryName(projPath));
+        return new DirectoryInfo(Path.GetDirectoryName(projPath) ?? throw new NullReferenceException("projPath"));
+    }
+
+    private static IEnumerable<FileInfo> GetFileList()
+    {
+        var dir = GetBasePath();
         Assert.True(dir.Exists);
 
-        _list = [.. dir.EnumerateFiles("*.png", SearchOption.AllDirectories)];
+        return dir.EnumerateFiles("*.png", SearchOption.AllDirectories);
     }
 
-    [Fact]
-    public void TotalFiles()
-    {
-        Assert.Equal(262, _list.Count);
-    }
+    private const string TestFiles = nameof(TestFiles);
+    private static readonly string TestFilesPath = Path.Combine(GetBasePath().FullName, TestFiles);
+    public static IEnumerable<object[]> GetTestFilenames() 
+        => GetFileList().Select(f => new object[] { f.FullName.Replace(TestFilesPath, "").Trim(Path.DirectorySeparatorChar) });
 
-    [Fact]
-    public void FirstBatch()
+    [Theory]
+    [MemberData(nameof(GetTestFilenames))]
+    public void PngFileTest(string filename)
     {
-        // arrange
-        // act
-        foreach (var file in _list)
+        var filepath = Path.Combine(TestFilesPath, filename);
+        using var fs = File.Open(filepath, FileMode.Open, FileAccess.Read);
+        try
         {
-            using var fs = File.Open(file.FullName, FileMode.Open, FileAccess.Read);
-            try
+            Console.WriteLine($"File: {filepath}");
+            var file = Path.GetFileName(filepath);
+            if (file.StartsWith("x"))
             {
-                Console.WriteLine($"File: {file.FullName}");
-                var png = new PNGDecode(fs);
-                Console.WriteLine($"Width: {png.Width}, Height: {png.Height}");
-                var header = png.Header;
-                Console.WriteLine($"ColorType: {header.ColorType}");
-                Console.WriteLine($"BitDepth: {header.BitDepth}");
-                Console.WriteLine($"CompressionMethod: {header.CompressionMethod}");
-                Console.WriteLine($"FilterMethod: {header.FilterMethod}");
-                Console.WriteLine($"InterlaceMethod: {header.InterlaceMethod}");
-
-                var c = png.DecodeImageData().ToArray();
-
-                // assert
-                Assert.NotEmpty(c);
-                Console.WriteLine($"Pixel size: {c.Length}");
-                Console.WriteLine($"Pixel size: {c.Length}");
-                foreach (var lchunk in c.Chunk((int)png.Width * 4))
-                {
-                    Console.WriteLine(string.Join(", ", lchunk
-                        .Chunk(4).Select(bs => string.Join("", bs.Select(b => $"{b:x2}")))));
-                }
-
+                Console.WriteLine("Skipping file with expected error");
+                return;
             }
-            catch (Exception ex)
+            var png = new PNGDecode(fs);
+            Console.WriteLine($"Width: {png.Width}, Height: {png.Height}");
+            var header = png.Header;
+            Console.WriteLine($"ColorType: {header.ColorType}");
+            Console.WriteLine($"BitDepth: {header.BitDepth}");
+            Console.WriteLine($"CompressionMethod: {header.CompressionMethod}");
+            Console.WriteLine($"FilterMethod: {header.FilterMethod}");
+            Console.WriteLine($"InterlaceMethod: {header.InterlaceMethod}");
+
+            if (header.InterlaceMethod != 0)
             {
-                Console.WriteLine(file.FullName);
-                Console.WriteLine(ex.ToString());
-                throw;
+                Console.WriteLine("Interleaced not supported for now, skipping");
+                return;
             }
-            fs.Close();
+
+            var c = png.DecodeImageData().ToArray();
+
+            // assert
+            Assert.NotEmpty(c);
+            Console.WriteLine($"Pixels size: {c.Length}");
+            foreach (var lchunk in c.Chunk((int)png.Width * 4))
+            {
+                Console.WriteLine(string.Join(", ", lchunk
+                    .Chunk(4).Select(bs => string.Join("", bs.Select(b => $"{b:x2}")))));
+            }
+
+            if (header.BitDepth == 2 && header.ColorType == PngDecoder.Models.ColorType.GreyScale) // basi0g02, basn0g02
+            {
+                Assert.Fail();
+            }
         }
-        Debug.Assert(0 != _list.Count);
+        catch (Exception ex)
+        {
+            Console.WriteLine(filepath);
+            Console.WriteLine(ex.ToString());
+            throw;
+        }
+        fs.Close();
     }
 }

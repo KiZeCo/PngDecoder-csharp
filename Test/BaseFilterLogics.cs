@@ -3,83 +3,75 @@
 namespace Test;
 public class BaseFilterLogics
 {
-    private MemoryStream _stream;
     private BaseFilter filter;
     public BaseFilterLogics()
     {
-        _stream = new MemoryStream();
+        var _stream = new MemoryStream();
         _stream.WriteByte(2); _stream.WriteByte(1); _stream.WriteByte(2);
         _stream.WriteByte(2); _stream.WriteByte(1); _stream.WriteByte(2);
-        filter = new BaseFilter(_stream, 3, 1);
+        filter = new BaseFilter(new Memory<byte>(_stream.GetBuffer(), 0, (int)_stream.Length), 3, 1);
     }
 
     [Fact]
     public void LeftCheckOnFirstLine()
     {
-        // arrange
-        _stream.Seek(1, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 1;
+        _ = filter.ReadByte();
+        Assert.Equal(2, filter.Position);
+
         var result = filter.GetLeftByte();
-        // assert
         Assert.Equal(0, result);
+        Assert.Equal(2, filter.Position);
     }
 
     [Fact]
     public void LeftCheckOnSecondLine()
     {
-        _stream.Seek(5, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 5;
+        _ = filter.ReadByte();
+        Assert.Equal(6, filter.Position);
+
         var result = filter.GetLeftByte();
-        // assert
         Assert.Equal(1, result);
     }
 
     [Fact]
     public void LeftCheckOnFirstLineLittleInSide()
     {
-        // arrange
-        _stream.Seek(2, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 2;
+        _ = filter.ReadByte();
+
         var result = filter.GetLeftByte();
-        // assert
         Assert.Equal(1, result);
     }
 
     [Fact]
     public void LeftCheckOnSecondLineLittleInSide()
     {
-        _stream.Seek(5, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 5;
+        _ = filter.ReadByte();
+
         var result = filter.GetLeftByte();
-        // assert
         Assert.Equal(1, result);
     }
 
     [Fact]
     public void TopCheckOnFirstLine()
     {
-        // arrange
-        _stream.Seek(1, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 1;
+        _ = filter.ReadByte();
+
         var result = filter.GetUpByte();
-        // assert
         Assert.Equal(0, result);
     }
 
     [Fact]
     public void TopCheckOnFirstLineLittleInSide()
     {
-        // arrange
-        _stream.Seek(2, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 2;
+        _ = filter.ReadByte();
+
         var result = filter.GetUpByte();
-        // assert
         Assert.Equal(0, result);
     }
 
@@ -87,124 +79,102 @@ public class BaseFilterLogics
     [Fact]
     public void TopCheckOnSecondLine()
     {
-        _stream.Seek(4, SeekOrigin.Begin);
-        // act
+        filter.Position = 4;
+
         var result = filter.GetUpByte();
-        // assert
         Assert.Equal(2, result);
     }
 
     [Fact]
     public void TopCheckOnSecondLineLittleInSide()
     {
-        _stream.Seek(5, SeekOrigin.Begin);
-        _ = _stream.ReadByte();
-        // act
+        filter.Position = 5;
+        _ = filter.ReadByte();
+
         var result = filter.GetUpByte();
-        // assert
         Assert.Equal(2, result);
     }
 
     [Fact]
     public void TopLeftCheckOnSecondLine()
     {
-        // arrange
-        _stream.Seek(5, SeekOrigin.Begin);
-        // act
+        filter.Position = 5;
+
         var response = filter.GetTopLeftByte();
-
-        // assert
-
         Assert.Equal(0, response);
     }
 
     [Fact]
     public void TopLeftCheckSecondLineLittleInSide()
     {
-        // arrange
-        _stream.Seek(6, SeekOrigin.Begin);
-        // act
+        filter.Position = 6;
+
         var response = filter.GetTopLeftByte();
-        // assert
         Assert.Equal(1, response);
     }
 
     [Fact]
     public void TopLeftCheckFirstLine()
     {
-        // arrange
-        _stream.Seek(2, SeekOrigin.Begin);
-        // act
+        filter.Position = 2;
+
         var response = filter.GetTopLeftByte();
-        // assert
         Assert.Equal(0, response);
     }
 
     [Fact]
     public void TopLeftCheckFirstLineLittleInSide()
     {
-        // arrange
-        _stream.Seek(3, SeekOrigin.Begin);
-        // act
+        filter.Position = 3;
+
         var response = filter.GetTopLeftByte();
-        // assert
         Assert.Equal(0, response);
     }
 
     [Fact]
     public void AfterLeftCheckPositionCheck()
     {
-        // arrange
-        _stream.Seek(0, SeekOrigin.Begin);
+        filter.Position = 0;
 
-        // act
-        var pos1 = _stream.ReadByte();
-        var pos2 = _stream.ReadByte();
+        var pos1 = filter.ReadByte();
+        Assert.Equal(2, pos1);
+        var pos2 = filter.ReadByte();
+        Assert.Equal(1, pos2);
         var leftPos1 = filter.GetLeftByte();
-        var pos3 = _stream.ReadByte();
+        Assert.Equal(0, leftPos1);
+        var pos3 = filter.ReadByte();
+        Assert.Equal(2, pos3);
         var leftPos2 = filter.GetLeftByte();
+        Assert.Equal(pos2, leftPos2);
 
-
-        var pos4 = _stream.ReadByte();
-        var pos5 = _stream.ReadByte();
+        var pos4 = filter.ReadByte();
+        Assert.Equal(2, pos4);
+        var pos5 = filter.ReadByte();
+        Assert.Equal(1, pos5);
         var leftPos3 = filter.GetLeftByte();
-        var pos6 = _stream.ReadByte();
+        Assert.Equal(0, leftPos3);
+        var pos6 = filter.ReadByte();
+        Assert.Equal(2, pos6);
         var leftPos4 = filter.GetLeftByte();
-        // assert
-
-        var check = pos1 == 2
-            && pos2 == 1
-            && pos3 == 2
-            && pos4 == 2
-            && pos5 == 1
-            && pos6 == 2
-            && leftPos1 == 0
-            && leftPos2 == pos2
-            && leftPos3 == 0
-            && leftPos4 == pos5;
-        Assert.True(check);
+        Assert.Equal(pos5, leftPos4);
     }
 
     [Fact]
     public void AfterTopCheckPositionCheck()
     {
-        // arrange
-        _stream.Seek(0, SeekOrigin.Begin);
+        filter.Position = 0;
 
-        // act
-        var pos1 = _stream.ReadByte();
-        var pos2 = _stream.ReadByte();
+        var pos1 = filter.ReadByte();
+        var pos2 = filter.ReadByte();
         var topPos1 = filter.GetUpByte();
-        var pos3 = _stream.ReadByte();
+        var pos3 = filter.ReadByte();
         var topPos2 = filter.GetUpByte();
 
-        var pos4 = _stream.ReadByte();
-        var pos5 = _stream.ReadByte();
+        var pos4 = filter.ReadByte();
+        var pos5 = filter.ReadByte();
         var topPos3 = filter.GetUpByte();
-        var pos6 = _stream.ReadByte();
+        var pos6 = filter.ReadByte();
         var topPos4 = filter.GetUpByte();
-
-        // assert
 
         var check = pos1 == 2
             && pos2 == 1
@@ -222,23 +192,20 @@ public class BaseFilterLogics
     [Fact]
     public void AfterTopLeftCheckPositionCheck()
     {
-        // arrange
-        _stream.Seek(0, SeekOrigin.Begin);
+        filter.Position = 0;
 
-        // act
-        var pos1 = _stream.ReadByte();
-        var pos2 = _stream.ReadByte();
+        var pos1 = filter.ReadByte();
+        var pos2 = filter.ReadByte();
         var topLeftPos1 = filter.GetTopLeftByte();
-        var pos3 = _stream.ReadByte();
+        var pos3 = filter.ReadByte();
         var topLeftPos2 = filter.GetTopLeftByte();
 
-        var pos4 = _stream.ReadByte();
-        var pos5 = _stream.ReadByte();
+        var pos4 = filter.ReadByte();
+        var pos5 = filter.ReadByte();
         var topLeftPos3 = filter.GetLeftByte();
-        var pos6 = _stream.ReadByte();
+        var pos6 = filter.ReadByte();
         var topLeftPos4 = filter.GetLeftByte();
 
-        // assert
         var check = pos1 == 2
             && pos2 == 1
             && pos3 == 2
@@ -255,18 +222,17 @@ public class BaseFilterLogics
     [Fact]
     public void CheckWrite()
     {
-        // arrange
-        _stream.Seek(0, SeekOrigin.Begin);
-        var response = _stream.ReadByte();
-        // act
-        filter.UnApply(10);
-        var response2 = _stream.ReadByte();
-        _stream.Seek(0, SeekOrigin.Begin);
-        var newResponse = _stream.ReadByte();
-        // assert
+        filter.Position = 0;
+        var response = filter.ReadByte();
         Assert.Equal(2, response);
-        Assert.Equal(10, newResponse);
+
+        filter.UnApply(0, 10);
+        var response2 = filter.ReadByte();
         Assert.Equal(1, response2);
+        filter.Position = 0;
+        var newResponse = filter.ReadByte();
+        Assert.Equal(10, newResponse);
+
         Assert.NotEqual(response, newResponse);
         Assert.NotEqual(response, response2);
     }

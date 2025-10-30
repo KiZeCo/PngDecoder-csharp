@@ -40,9 +40,9 @@ public class BaseFilterForSixteenBitImage
     [Fact]
     public void Get3PartLeft()
     {
-        var filter = new BaseFilter(_stream, 9, 3);
-        _stream.Seek(4, SeekOrigin.Begin);
-        var pos  = _stream.ReadByte();
+        var filter = new BaseFilter(new Memory<byte>(_stream.GetBuffer(), 0, (int)_stream.Length), 9, 3);
+        filter.Position = 4;
+        var pos  = filter.ReadByte();
         var left = filter.GetLeftByte();
 
         Assert.Equal(pos, left);

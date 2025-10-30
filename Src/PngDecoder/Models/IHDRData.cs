@@ -14,8 +14,7 @@ public readonly struct IHDRData
         if (headerChunk.Length != 13)
             throw new ArgumentException("Invalid Header");
 
-        Span<byte> response = stackalloc byte[(int)headerChunk.Length];
-        headerChunk.GetData(response);
+        Span<byte> response = headerChunk.Data.Span;
 
         var temp = response[..4];
         temp.Reverse();

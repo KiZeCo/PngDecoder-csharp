@@ -3,7 +3,7 @@ using PngDecoder.Extension;
 using PngDecoder.Models;
 using PngDecoder.Models.ColorReader;
 using PngDecoder.Models.Filters;
-using System.Buffers;
+using System.Diagnostics;
 using System.IO.Compression;
 
 namespace PngDecoder;
@@ -47,63 +47,65 @@ public class PNGDecode
     public uint Height => Header.Height;
     public uint Width => Header.Width;
 
-    public Span<byte> DecodeImageData()
+    public Memory<byte> DecodeImageData()
     {
         var colorConverter = GetColorConverter();
 
         var result = new byte[Header.Height * Header.Width * 4];
-        using var rawstream = GetFilteredRawStream();
-        using var filteredMutableRawStream = new MemoryStream();
-        rawstream.CopyTo(filteredMutableRawStream);
-        UnfilterStream(filteredMutableRawStream, colorConverter, result);
+        var mutableRawData = GetFilteredRawStream();
+        UnfilterStream(mutableRawData, colorConverter, result);
         return result;
     }
 
     // TODO write own ZLib to minimize foot-print even more
-    private ZLibStream GetFilteredRawStream()
+    private Memory<byte> GetFilteredRawStream()
     {
-        var result = new MemoryStream();
+        using var result = new MemoryStream();
         foreach (var chunk in _chunks.Where(a => a.Signature == PngChunkType.IDAT))
         {
-            var data = ArrayPool<byte>.Shared.Rent((int)chunk.Length);
-            try
-            {
-                chunk.GetData(data);
-                result.Write(data, 0, (int)chunk.Length);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(data);
-            }
+            result.Write(chunk.Data.Span);
         }
         result.Position = 0;
-        return new ZLibStream(result, CompressionMode.Decompress, false);
+        using var src = new ZLibStream(result, CompressionMode.Decompress, false);
+        using var mutableRawStream = new MemoryStream((int)result.Length);
+        src.CopyTo(mutableRawStream);
+        mutableRawStream.Position = 0;
+        return new Memory<byte>(mutableRawStream.GetBuffer(), 0, (int)mutableRawStream.Length);
     }
 
-    private void UnfilterStream(Stream filteredRawData, IColorConverter converter, Span<byte> result)
+    private void UnfilterStream(Memory<byte> mutableRawData, IColorConverter converter, Span<byte> result)
     {
-        filteredRawData.Seek(0, SeekOrigin.Begin);
-        Span<byte> currentByte = stackalloc byte[1];
         var writtenSection = new Span<byte>();
         var lineWidth = Header.GetScanLinesWidthWithPadding() + 1;
-        var filterer = new BaseFilter(filteredRawData, lineWidth, Header.PixelSizeInByte);
+        var filterer = new BaseFilter(mutableRawData, lineWidth, Header.PixelSizeInByte);
         var unapply = filterer.GetUnApply(0);
         var writtenIndex = 0;
         var currentRow = -1;
-        while (filteredRawData.Read(currentByte) != 0)
+        var currentByte = -1;
+        // TODO work on lines
+        var lineno = 0;
+        while (lineno < Height)
         {
-            if (filteredRawData.Position == 1 || filteredRawData.Position % lineWidth == 1)
+            var line = filterer.GetLine(lineno++);
+            if (line.Length != lineWidth)
+            {
+                throw new IndexOutOfRangeException($"{line.Length} expected {lineWidth}");
+            }
+        }
+        while ((currentByte = filterer.ReadByte()) != -1)
+        {
+            if (filterer.Position % lineWidth == 1)
             {
                 writtenIndex = 0;
                 currentRow++;
-                unapply = filterer.GetUnApply(currentByte[0]);
+                unapply = filterer.GetUnApply(currentByte);
                 writtenSection = result.Slice(
                     (int)(currentRow * Header.Width * 4),
                     (int)Header.Width * 4);
                 continue;
             }
             //TODO: can be do prcess the number requied pixels or a full pixel.
-            var compressByte = unapply(currentByte[0]);
+            var compressByte = unapply((byte)currentByte);
             converter.Write(writtenSection, compressByte, ref writtenIndex);
         }
     }
