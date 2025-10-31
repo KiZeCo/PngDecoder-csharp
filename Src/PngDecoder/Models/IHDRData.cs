@@ -42,28 +42,22 @@ public readonly struct IHDRData
         return ++count;
     }
 
-    public readonly decimal GetScanLineWidthWithoutPadding()
-    {
-        decimal length = Width * BitDepth * BytePerPixels;
-        return length / 8m;
-    }
-
     private readonly uint BytePerPixels => ColorType switch
     {
-        ColorType.GreyScale => 1,
-        ColorType.RGB => 3,
+        ColorType.Greyscale => 1,
+        ColorType.Color => 3,
         ColorType.Palette => 1,
-        ColorType.GreyScaleAndAlpha => 2,
+        ColorType.AlphaUsed => 2,
         ColorType.RGBA => 4,
         _ => throw new Exception(),
     };
 
     public readonly byte PixelSizeInByte => ColorType switch
     {
-        ColorType.GreyScale => (byte)Math.Round(1d * BitDepth / 8, MidpointRounding.ToPositiveInfinity),
+        ColorType.Greyscale => (byte)Math.Round(1d * BitDepth / 8, MidpointRounding.ToPositiveInfinity),
         ColorType.Palette => 1,
-        ColorType.GreyScaleAndAlpha => (byte)(2 * BitDepth / 8),
-        ColorType.RGB => (byte)(3 * BitDepth / 8),
+        ColorType.AlphaUsed => (byte)(2 * BitDepth / 8),
+        ColorType.Color => (byte)(3 * BitDepth / 8),
         ColorType.RGBA => (byte)(4 * BitDepth / 8),
         _ => throw new Exception()
     };

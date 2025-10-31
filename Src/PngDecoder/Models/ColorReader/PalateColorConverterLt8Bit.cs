@@ -5,8 +5,9 @@ internal class PalateColorConverterLt8Bit(PLTEData _data, IHDRData iHdr) : IColo
 {
     private readonly (byte step, byte mask) bitDetails = BitDepthDetailsForPalated(iHdr.BitDepth);
 
-    public void Write(Span<byte> result, byte inputByte, ref int writeIndex)
+    public void Write(Span<Argb> result, Span<byte> pixeldata, ref int writeIndex)
     {
+        var inputByte = pixeldata[0];
         // less than 8 n
         for (int j = bitDetails.step; j >= 0; j -= iHdr.BitDepth)
         {
@@ -14,15 +15,10 @@ internal class PalateColorConverterLt8Bit(PLTEData _data, IHDRData iHdr) : IColo
             byte currentBit = (byte)((inputByte & mask) >> j);
             var colors = _data[currentBit];
 
-            if (writeIndex < iHdr.Width * 4)
+            // overflow is ignoerd?
+            if (writeIndex < iHdr.Width)
             {
-                for (int i = 0; i < colors.Length; i++)
-                {
-                    result[writeIndex] = colors[i];
-                    writeIndex++;
-                }
-                // for alpha
-                result[writeIndex++] = 255;
+                result[writeIndex++] = new(0xff, colors[0], colors[1], colors[2]);
             }
         }
     }

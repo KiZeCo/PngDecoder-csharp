@@ -3,15 +3,8 @@ namespace PngDecoder.Models.ColorReader;
 
 internal class GrayScaleColorConverter8Bit() : IColorConverter
 {
-    public void Write(Span<byte> result, byte inputByte, ref int writeIndex)
+    public void Write(Span<Argb> result, Span<byte> pixeldata, ref int writeIndex)
     {
-        for (int i = 0; i < 3; i++)
-        {
-            result[writeIndex] = inputByte;
-            writeIndex++;
-        }
-
-        result[writeIndex] = 255;
-        writeIndex++;
+        result[writeIndex++] = new (0xff, pixeldata[0], pixeldata[0], pixeldata[0]);
     }
 }

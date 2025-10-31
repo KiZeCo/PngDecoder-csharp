@@ -3,18 +3,9 @@ namespace PngDecoder.Models.ColorReader;
 
 internal class PalateColorConverter8Bit(PLTEData _data) : IColorConverter
 {
-    public void Write(Span<byte> result, byte inputByte, ref int writeIndex)
+    public void Write(Span<Argb> result, Span<byte> pixeldata, ref int writeIndex)
     {
-        if (writeIndex % 4 == 3)
-        {
-            result[writeIndex] = 255;
-            writeIndex++;
-        }
-        result[writeIndex] = _data[inputByte][0];
-        writeIndex++;
-        result[writeIndex] = _data[inputByte][1];
-        writeIndex++;
-        result[writeIndex] = _data[inputByte][2];
-        writeIndex++;
+        var pdata = _data[pixeldata[0]];
+        result[writeIndex++] = new(0xff, pdata[0], pdata[1], pdata[2]);
     }
 }

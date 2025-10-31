@@ -3,19 +3,9 @@ namespace PngDecoder.Models.ColorReader;
 
 internal class RGBAColorConverter16Bit() : IColorConverter
 {
-    public void Write(Span<byte> result, byte inputByte, ref int writeIndex)
+    public void Write(Span<Argb> result, Span<byte> pixeldata, ref int writeIndex)
     {
-        if (_cnt == 0)
-        {
-            result[writeIndex] = inputByte;
-            writeIndex++;
-            _cnt++;
-        }
-        else
-        {
-            _cnt = 0;
-        }
+        // ignore lower bits
+        result[writeIndex++] = new(pixeldata[6], pixeldata[0], pixeldata[2], pixeldata[4]);
     }
-
-    private byte _cnt;
 }

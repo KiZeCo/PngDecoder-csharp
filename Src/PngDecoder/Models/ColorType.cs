@@ -1,9 +1,11 @@
 ﻿namespace PngDecoder.Models;
+[Flags]
 public enum ColorType : byte
 {
-    GreyScale = 0,                              // Gray Scale
-    RGB = 2,                                    // True Color
-    Palette = 3,                                // Palette	
-    GreyScaleAndAlpha = 4,                      // Gray Scale and alpha
-    RGBA = 6,                                   // True Color and alpha
+    Greyscale = 0,
+    PaletteUsed = 1,
+    Color = 2,
+    Palette = PaletteUsed | Color,
+    AlphaUsed = 4,
+    RGBA = Color | AlphaUsed,
 }

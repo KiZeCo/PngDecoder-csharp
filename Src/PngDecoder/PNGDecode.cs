@@ -46,11 +46,11 @@ public class PNGDecode
     public uint Height => Header.Height;
     public uint Width => Header.Width;
 
-    public Memory<byte> DecodeImageData()
+    public Memory<Argb> DecodeImageData()
     {
         var colorConverter = GetColorConverter();
 
-        var result = new byte[Header.Height * Header.Width * 4];
+        var result = new Memory<Argb>(new Argb[Header.Height * Header.Width]);
         var mutableRawData = GetFilteredRawStream();
         UnfilterStream(mutableRawData, colorConverter, result);
         return result;
@@ -72,28 +72,38 @@ public class PNGDecode
         return new Memory<byte>(mutableRawStream.GetBuffer(), 0, (int)mutableRawStream.Length);
     }
 
-    private void UnfilterStream(Memory<byte> mutableRawData, IColorConverter converter, Span<byte> result)
+    private void UnfilterStream(Memory<byte> mutableRawData, IColorConverter converter, Memory<Argb> result)
     {
-        Span<byte> writtenSection;
+        Span<Argb> writtenSection;
         var lineWidth = Header.GetScanLinesWidthWithPadding() + 1;
-        var filterer = new BaseFilter(mutableRawData, lineWidth, Header.PixelSizeInByte);
+        var pxSize = Header.PixelSizeInByte;
+        var filterer = new BaseFilter(mutableRawData, lineWidth, pxSize);
         var currentRow = 0;
         Span<byte> priorLine = null;
+        Span<byte> pixelbytes = stackalloc byte[pxSize];
         while (currentRow < Height)
         {
             writtenSection = result.Slice(
-                (int)(currentRow * Header.Width * 4),
-                (int)Header.Width * 4);
+                (int)(currentRow * Header.Width),
+                (int)Header.Width).Span;
             var line = filterer.GetLine(currentRow++);
             var unapply = filterer.GetUnApply(line[0]);
 
             var writtenIndex = 0;
             var pos = 1; // ignore first command byte
+            var pxpos = 0;
             while (pos < lineWidth)
             {
-                //TODO: can be do prcess the number requied pixels or a full pixel.
-                var compressByte = unapply(pos++, line, priorLine);
-                converter.Write(writtenSection, compressByte, ref writtenIndex);
+                pixelbytes[pxpos++] = unapply(pos++, line, priorLine);
+                if (pxpos == pxSize)
+                {
+                    converter.Write(writtenSection, pixelbytes, ref writtenIndex);
+                    pxpos = 0;
+                }
+            }
+            if (pxpos != 0)
+            {
+                throw new InvalidOperationException($"pxpos was {pxpos}");
             }
             priorLine = line;
         }
@@ -103,9 +113,9 @@ public class PNGDecode
         Header.ColorType switch
         {
             ColorType.Palette => Header.BitDepth == 8 ? new PalateColorConverter8Bit(PlteData) : new PalateColorConverterLt8Bit(PlteData, Header),
-            ColorType.GreyScale => Header.BitDepth == 8 ? new GrayScaleColorConverter8Bit() : (Header.BitDepth < 8 ? new GrayScaleColorConverterLt8Bit(Header) : new GrayScaleColorConverter16Bit()),
-            ColorType.RGB => Header.BitDepth == 8 ? new RGBColorConverter8Bit() : new RGBColorConverter16Bit(),
-            ColorType.GreyScaleAndAlpha => Header.BitDepth == 8 ? new GreyScaleAndAlphaConverter8Bit() : new GreyScaleAndAlphaConverter16Bit(),
+            ColorType.Greyscale => Header.BitDepth == 8 ? new GrayScaleColorConverter8Bit() : (Header.BitDepth < 8 ? new GrayScaleColorConverterLt8Bit(Header) : new GrayScaleColorConverter16Bit()),
+            ColorType.Color => Header.BitDepth == 8 ? new RGBColorConverter8Bit() : new RGBColorConverter16Bit(),
+            ColorType.AlphaUsed => Header.BitDepth == 8 ? new GreyScaleAndAlphaConverter8Bit() : new GreyScaleAndAlphaConverter16Bit(),
             ColorType.RGBA => Header.BitDepth == 8 ? new RGBAColorConverter8Bit() : new RGBAColorConverter16Bit(),
             _ => throw new NotSupportedException(),
         };

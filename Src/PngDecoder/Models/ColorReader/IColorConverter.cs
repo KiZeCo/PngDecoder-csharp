@@ -3,5 +3,5 @@ namespace PngDecoder.Models.ColorReader;
 
 internal interface IColorConverter
 {
-    void Write(Span<byte> result, byte inputByte, ref int writeIndex);
+    void Write(Span<Argb> result, Span<byte> pixeldata, ref int writeIndex);
 }

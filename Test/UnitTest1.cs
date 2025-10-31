@@ -60,13 +60,18 @@ public class UnitTest1
             // assert
             Assert.NotEmpty(c);
             Console.WriteLine($"Pixels size: {c.Length}");
-            foreach (var lchunk in c.Chunk((int)png.Width * 4))
+            foreach (var lchunk in c.Chunk((int)png.Width))
+            {
+                Console.WriteLine(string.Join("", lchunk
+                    .Select(c => c.Brightness < 0.5 ? "#" : " ")));
+            }
+            foreach (var lchunk in c.Chunk((int)png.Width))
             {
                 Console.WriteLine(string.Join(", ", lchunk
-                    .Chunk(4).Select(bs => string.Join("", bs.Select(b => $"{b:x2}")))));
+                    .Select(c => c.ToString().Replace("ffffffff", "        "))));
             }
 
-            if (header.BitDepth == 2 && header.ColorType == PngDecoder.Models.ColorType.GreyScale) // basi0g02, basn0g02
+            if (header.BitDepth == 2 && header.ColorType == PngDecoder.Models.ColorType.Greyscale) // basi0g02, basn0g02
             {
                 Assert.Fail();
             }
